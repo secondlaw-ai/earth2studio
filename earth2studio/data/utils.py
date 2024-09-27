@@ -69,6 +69,7 @@ def fetch_data(
     da = []
     for lead in lead_time:
         adjust_times = np.array([t + lead for t in time], dtype="datetime64[ns]")
+        logger.warning(f"adjust_times: {adjust_times}")
         da0 = source(adjust_times, variable)
         da0 = da0.expand_dims(dim={"lead_time": 1}, axis=1)
         da0 = da0.assign_coords(lead_time=np.array([lead], dtype="timedelta64[ns]"))

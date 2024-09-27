@@ -191,9 +191,10 @@ class IFS:
                 )
 
             if (datetime.now() - time).days > 4:
-                raise ValueError(
-                    f"Requested date time {time} needs to be within the past 4 days for IFS"
-                )
+                logger.warning(f"Requested date time {time} is outside of 4 day range")
+                # raise ValueError(
+                #     f"Requested date time {time} needs to be within the past 4 days for IFS"
+                # )
 
             # if not self.available(time):
             #     raise ValueError(f"Requested date time {time} not available in IFS")
