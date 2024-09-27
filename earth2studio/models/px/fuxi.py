@@ -108,7 +108,7 @@ VARIABLES = [
     "u10m",
     "v10m",
     "msl",
-    "tp06",
+    "tp",
 ]
 
 
