@@ -75,7 +75,7 @@ class IFS:
     def __init__(self, cache: bool = True, verbose: bool = True):
         self._cache = cache
         self._verbose = verbose
-        self.client = ecmwf.opendata.Client(source="azure")
+        self.client = ecmwf.opendata.Client(source="aws")
 
     def __call__(
         self,
