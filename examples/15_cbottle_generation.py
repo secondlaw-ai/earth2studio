@@ -36,6 +36,12 @@ In this example you will learn:
 - Instantiating cBottle infill diagnostic model
 - Creating a simple infilling inference workflow
 """
+# /// script
+# dependencies = [
+#   "earth2studio[cbottle] @ git+https://github.com/NVIDIA/earth2studio.git",
+#   "cartopy",
+# ]
+# ///
 
 # %%
 # Set Up
@@ -150,7 +156,7 @@ for ax0 in ax:
     ax0.gridlines()
 
 plt.tight_layout()
-plt.savefig("outputs/12_tcwv_cbottle_datasource.jpg")
+plt.savefig("outputs/15_tcwv_cbottle_datasource.jpg")
 
 # %%
 # Variable Infilling with CBottleInfill Diagnostic
@@ -284,4 +290,4 @@ ax[1, 1].set_title("3 Input Variables Std")
 ax[1, 2].set_title("13 Input Variables Std")
 
 plt.tight_layout()
-plt.savefig("outputs/12_tcwv_cbottle_infill.jpg")
+plt.savefig("outputs/15_tcwv_cbottle_infill.jpg")

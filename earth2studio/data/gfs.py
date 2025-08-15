@@ -112,6 +112,7 @@ class GFS:
             self.uri_prefix = "noaa-gfs-bdp-pds"
             # Check to see if there is a running loop (initialized in async)
             try:
+                nest_asyncio.apply()  # Monkey patch asyncio to work in notebooks
                 loop = asyncio.get_running_loop()
                 loop.run_until_complete(self._async_init())
             except RuntimeError:
@@ -175,7 +176,6 @@ class GFS:
         xr.DataArray
             GFS weather data array
         """
-        nest_asyncio.apply()  # Patch asyncio to work in notebooks
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -420,7 +420,12 @@ class GFS:
             Dictionary of GFS vairables (byte offset, byte length)
         """
         # Grab index file
-        index_file = await self._fetch_remote_file(index_uri)
+        try:
+            index_file = await self._fetch_remote_file(index_uri)
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"The specified data index, {index_uri}, does not exist. Data seems to be missing."
+            )
         with open(index_file) as file:
             index_lines = [line.rstrip() for line in file]
 
@@ -580,7 +585,6 @@ class GFS_FX(GFS):
         xr.DataArray
             GFS weather data array
         """
-        nest_asyncio.apply()  # Patch asyncio to work in notebooks
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:

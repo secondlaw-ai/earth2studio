@@ -76,6 +76,7 @@ class _WB2Base:
 
         # Check to see if there is a running loop (initialized in async)
         try:
+            nest_asyncio.apply()  # Monkey patch asyncio to work in notebooks
             loop = asyncio.get_running_loop()
             loop.run_until_complete(self._async_init())
         except RuntimeError:
@@ -97,7 +98,9 @@ class _WB2Base:
             access="read_only",
             block_size=8**20,
             asynchronous=True,
+            skip_instance_cache=True,
         )
+        fs._loop = asyncio.get_event_loop()
 
         if self._cache:
             cache_options = {
@@ -136,7 +139,6 @@ class _WB2Base:
             ERA5 weather data array from weather bench 2
         """
 
-        nest_asyncio.apply()  # Patch asyncio to work in notebooks
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -689,3 +691,18 @@ class WB2Climatology(_WB2Base):
         """
         tt = time.timetuple()
         return tt.tm_hour // 6, tt.tm_yday - 1
+
+    @classmethod
+    def _validate_time(cls, times: list[datetime]) -> None:
+        """Verify if date time is valid for WeatherBench 2 climatology.
+
+        Parameters
+        ----------
+        times : list[datetime]
+            list of date times to fetch data
+        """
+        for time in times:
+            if not (time - datetime(1900, 1, 1)).total_seconds() % 21600 == 0:
+                raise ValueError(
+                    f"Requested date time {time} needs to be 6 hour interval for WeatherBench 2 climatology"
+                )

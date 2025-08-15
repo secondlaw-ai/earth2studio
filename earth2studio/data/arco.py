@@ -89,6 +89,7 @@ class ARCO:
         if self.zarr_major_version >= 3:
             # Check to see if there is a running loop (initialized in async)
             try:
+                nest_asyncio.apply()  # Monkey patch asyncio to work in notebooks
                 loop = asyncio.get_running_loop()
                 loop.run_until_complete(self._async_init())
             except RuntimeError:
@@ -133,7 +134,13 @@ class ARCO:
             access="read_only",
             block_size=8**20,
             asynchronous=True,
+            skip_instance_cache=True,
         )
+        # Need to manually set this here, the reason being that when the file system
+        # defines the weak ref of the client, it needs the loop used to create it.
+        # Otherwise it will try to kill the client with another loop, throwing an error
+        # at the end of the script
+        fs._loop = asyncio.get_event_loop()
 
         if self._cache:
             cache_options = {
@@ -172,7 +179,6 @@ class ARCO:
             ERA5 weather data array from ARCO
         """
 
-        nest_asyncio.apply()  # Patch asyncio to work in notebooks
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -405,6 +411,7 @@ class ARCO:
         except ValueError:
             return False
 
+        # TODO: FIX THIS, FOR ZARR 3.0 THIS IS DANGEROUS NON-ASYNC
         gcs = gcsfs.GCSFileSystem(cache_timeout=-1)
 
         try:

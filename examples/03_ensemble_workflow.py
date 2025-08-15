@@ -33,6 +33,12 @@ In this example you will learn:
 - Running a simple built in workflow for ensembling
 - Post-processing results
 """
+# /// script
+# dependencies = [
+#   "earth2studio[fcn,perturbation] @ git+https://github.com/NVIDIA/earth2studio.git",
+#   "cartopy",
+# ]
+# ///
 
 # %%
 # Set Up
@@ -51,7 +57,7 @@ In this example you will learn:
 # We need the following:
 #
 # - Prognostic Model: Use the built in FourCastNet model :py:class:`earth2studio.models.px.FCN`.
-# - perturbation_method: Use the Spherical Gaussian Method :py:class:`earth2studio.perturbation.SphericalGaussian`.
+# - Perturbation Method: Use the Spherical Gaussian Method :py:class:`earth2studio.perturbation.SphericalGaussian`.
 # - Datasource: Pull data from the GFS data api :py:class:`earth2studio.data.GFS`.
 # - IO Backend: Save the outputs into a Zarr store :py:class:`earth2studio.io.ZarrBackend`.
 

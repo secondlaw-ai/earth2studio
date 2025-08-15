@@ -10,9 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Async Zarr IO backend with non-blocking write calls
+- Different compression codec support in the ZarrBackend with `zarr_codecs` parameter
+- IO performance example
+- Unified CorrDiff Wrapper
+- Added UV script dependencies to all examples
+- Added CMIP6 data source
+- New metrics: Brier score, fractions skill score, log spectral distance, mean absolute error.
+- Option to compute error of ensemble mean in rmse and mae.
+- Added FourCastNet 3 model.
+
 ### Changed
 
-- Updated default StormCast package version to 1.0.2
+- Zarr IO Backend now uncompressed by default
+- Allow HCBV perturbation to handle constant outputs (like land sea mask, or
+  geopotential at surface)
+- test/models/dx/test_corrdiff.py is now test/models/dx/test_corrdiff_taiwan.py
+- Updated APIs for optional dependency managment utils with improved error messages
+- Allow Zarr backends to user datetime and timedelta arrays for Zarr 3.0
 
 ### Deprecated
 
@@ -20,11 +35,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- NGC filesystem from API change in version >=3.158.1 of ngcsdk
+- Incorrect datetime utc timezone calculation in SFNO wrapper was fixed.
+- DLWP output coords lead_time array to have proper shape
+- Fixed data sources using GCFS throwing error at end of script from aiohttp session
+  clean up
+- Fixed HRRR_FX valid lead time check for date times not on 6 hour interval
+- Removed time limits for WB2 climatology data source
 
 ### Security
 
 ### Dependencies
+
+- Adding rich to core dependencies
+- Changed torch-harmonics to 0.8.0
+- Changed makani to 0.2.1
+
+## [0.8.1] - 2025-07-07
+
+### Changed
+
+- Updated default StormCast package version to 1.0.2
+
+### Fixed
+
+- NGC filesystem from API change in version >=3.158.1 of ngcsdk
+
+### Dependencies
+
+- Removed ngcsdk dependency requirement for public NGC packages
 
 ## [0.8.0] - 2025-06-13
 

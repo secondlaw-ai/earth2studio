@@ -29,7 +29,7 @@ and it's recommended that users use an uv project for the best install experienc
 ```bash
 mkdir earth2studio-project && cd earth2studio-project
 uv init --python=3.12
-uv add "earth2studio @ git+https://github.com/NVIDIA/earth2studio.git@0.8.0"
+uv add "earth2studio @ git+https://github.com/NVIDIA/earth2studio.git@0.8.1"
 ```
 
 :::{admonition} uv install
@@ -202,6 +202,33 @@ uv add earth2studio --extra fcn
 :::
 ::::
 :::::
+:::::{tab-item} FourCastNet 3
+Notes: Recommended to install [torch-harmonics](https://github.com/NVIDIA/torch-harmonics)
+with CUDA extensions for best performance. [Modulus-Makani](https://github.com/NVIDIA/modulus-makani.git)
+needs to be installed manually.
+
+::::{tab-set}
+:::{tab-item} pip
+
+```bash
+export FORCE_CUDA_EXTENSION=1
+pip install --no-build-isolation torch-harmonics==0.8.0
+pip install "makani @ git+https://github.com/NVIDIA/modulus-makani.git@49280812513d8f1daf872a2e9343855a6adb3acf"
+pip install earth2studio[fcn3]
+```
+
+:::
+:::{tab-item} uv
+
+```bash
+export FORCE_CUDA_EXTENSION=1
+uv add torch-harmonics==0.8.0 --no-build-isolation
+uv add earth2studio --extra fcn3
+```
+
+:::
+::::
+:::::
 :::::{tab-item} FengWu
 Notes: Requires [ONNX GPU Runtime](https://onnxruntime.ai/docs/install/). May need
 manual install depending on CUDA and Python version.
@@ -293,7 +320,7 @@ installed manually.
 :::{tab-item} pip
 
 ```bash
-pip install "makani[all] @ git+https://github.com/NickGeneva/modulus-makani.git@3da09f9e52a6393839d73d44262779ac7279bc2f"
+pip install "makani @ git+https://github.com/NVIDIA/modulus-makani.git@49280812513d8f1daf872a2e9343855a6adb3acf"
 pip install earth2studio[sfno]
 ```
 
@@ -358,7 +385,9 @@ CBottleInfill diagnostic and CBottleSR diagnostic.
 :::{tab-item} pip
 
 ```bash
+pip install hatchling
 pip install --no-build-isolation "earth2grid @ git+https://github.com/NVlabs/earth2grid@aefb10793aa372bae7d0951d627a89e2983fd0ca"
+pip install --no-build-isolation "cbottle @ git+https://github.com/NVlabs/cBottle.git@0b8c6787053dc80f14fbb68a54d6815749c9d0e9"
 pip install earth2studio[cbottle]
 ```
 
@@ -631,21 +660,21 @@ For developer environments, please refer to the {ref}`developer_overview`.
 
 ## uv Project
 
-Using uv is the recommend way to set up a Python environment for Earth2Studio.
+Using uv is the recommend way to set up a local Python environment for Earth2Studio.
 Assuming [uv is installed](https://docs.astral.sh/uv/getting-started/installation/), use
 the following commands:
 
 ```bash
 mkdir earth2studio-project && cd earth2studio-project
 uv init --python=3.12
-uv add "earth2studio @ git+https://github.com/NVIDIA/earth2studio.git@0.8.0"
+uv add "earth2studio @ git+https://github.com/NVIDIA/earth2studio.git@0.8.1"
 ```
 
 or if you are already inside an existing uv project:
 
 ```bash
 uv venv --python=3.12
-uv add "earth2studio @ git+https://github.com/NVIDIA/earth2studio.git@0.8.0"
+uv add "earth2studio @ git+https://github.com/NVIDIA/earth2studio.git@0.8.1"
 ```
 
 (pytorch_container_environment)=
@@ -653,7 +682,8 @@ uv add "earth2studio @ git+https://github.com/NVIDIA/earth2studio.git@0.8.0"
 ## PyTorch Docker Container
 
 For a docker environment the [Nvidia PyTorch container](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch)
-provides a good base with many dependencies already installed.
+provides a good base with many dependencies already installed and optimized for NVIDIA
+hardware.
 In container instances, using a virtual environment is often [not necessary](https://docs.astral.sh/uv/pip/environments/#using-arbitrary-python-environments).
 It is recommend using the following commands to install using the container's Python
 interpreter:
@@ -664,7 +694,7 @@ docker run -it -t nvcr.io/nvidia/pytorch:25.05-py3
 >>> apt-get update && apt-get install -y git make curl && rm -rf /var/lib/apt/lists/*
 >>> unset PIP_CONSTRAINT
 >>> curl -LsSf https://astral.sh/uv/install.sh | sh && source $HOME/.local/bin/env
->>> uv pip install --system --break-system-packages "earth2studio@git+https://github.com/NVIDIA/earth2studio.git@0.8.0"
+>>> uv pip install --system --break-system-packages "earth2studio@git+https://github.com/NVIDIA/earth2studio.git@0.8.1"
 ```
 
 <!-- markdownlint-disable MD013 -->
@@ -677,10 +707,11 @@ do with pip e.g.
 ```bash
 uv pip install --system \
     --break-system-packages \
-    "earth2studio[all]@git+https://github.com/NVIDIA/earth2studio.git@0.8.0"
+    "earth2studio[all]@git+https://github.com/NVIDIA/earth2studio.git@0.8.1"
 ```
 
 :::
+
 <!-- markdownlint-enable MD013 -->
 
 ## Custom Container
@@ -704,7 +735,7 @@ WORKDIR /app
 # Disable contraint files in the container
 ENV PIP_CONSTRAINT=
 # Install Earth2Studio and dependencies
-RUN uv pip install --system --break-system-packages "earth2studio@git+https://github.com/NVIDIA/earth2studio.git@0.8.0"
+RUN uv pip install --system --break-system-packages "earth2studio@git+https://github.com/NVIDIA/earth2studio.git@0.8.1"
 ```
 
 ## Conda Environment
@@ -720,8 +751,42 @@ package tooling.
 conda create -n earth2studio python=3.12
 conda activate earth2studio
 
-uv pip install --system --break-system-packages "earth2studio@git+https://github.com/NVIDIA/earth2studio.git@0.8.0"
+uv pip install --system --break-system-packages "earth2studio@git+https://github.com/NVIDIA/earth2studio.git@0.8.1"
 ```
+
+# System Recommendations
+
+## Software
+
+Earth2Studio does not have any specific software version requirements.
+The following are recommended to closely match development and automation environments,
+minimizing the chance for unforeseen incompatibilities:
+
+- OS: Ubuntu 24.04 LTS
+- Python Version: 3.12
+- CUDA Version: 12.8
+
+## Hardware
+
+Earth2Studio does not have any specific hardware requirements, if PyTorch can run then
+many features of Earth2Studio should run as well.
+However, most models do require a GPU with sufficient memory and compute score to run
+without complications.
+The recommended hardware for the majority of models supported in Earth2Studio is:
+
+| GPU | GPU Memory (GB) | Precision | # of GPUs | Disk Space (GB) |
+|-----|-----------------|-----------|-----------|-----------------|
+| [NVIDIA GPU](https://developer.nvidia.com/cuda-gpus) with compute capability ≥ 8.9 | ≥40 | FP32 | 1 | 128 |
+
+This includes cards such as:
+
+- L40S
+- RTX A6000
+- H100
+- B200
+
+We encourage users to experiment on different hardware for their specific needs and
+usecase.
 
 (configuration_userguide)=
 

@@ -37,6 +37,12 @@ In this example you will learn:
 - How to use the output selection and regridding methods to select appropriate data
 - How to use the DLESyMLatLon model with earth2studio workflows
 """
+# /// script
+# dependencies = [
+#   "earth2studio[dlesym] @ git+https://github.com/NVIDIA/earth2studio.git",
+#   "cartopy",
+# ]
+# ///
 
 # %%
 # Set Up
@@ -72,7 +78,9 @@ from earth2studio.data import ARCO
 from earth2studio.data.utils import fetch_data
 from earth2studio.models.px.dlesym import DLESyM, DLESyMLatLon
 
-device = "cpu" if not torch.cuda.is_available() else "cuda"
+device = "cuda"
+if not torch.cuda.is_available():
+    raise RuntimeError("GPU/CUDA required for DLESyM")
 
 # Create the data source
 data = ARCO()

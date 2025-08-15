@@ -21,6 +21,7 @@ import hashlib
 import os
 import pathlib
 import shutil
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -34,22 +35,29 @@ from fsspec.implementations.http import HTTPFileSystem
 from loguru import logger
 from tqdm.asyncio import tqdm
 
-try:
-    import pyproj
-except ImportError:
-    pyproj = None
-
 from earth2studio.data.utils import (
     datasource_cache_root,
     prep_data_inputs,
     prep_forecast_inputs,
 )
 from earth2studio.lexicon import HRRRFXLexicon, HRRRLexicon
-from earth2studio.utils import check_extra_imports
+from earth2studio.utils.imports import (
+    OptionalDependencyFailure,
+    check_optional_dependencies,
+)
 from earth2studio.utils.type import LeadTimeArray, TimeArray, VariableArray
+
+try:
+    import pyproj
+except ImportError:
+    OptionalDependencyFailure("data")
+    pyproj = None
 
 logger.remove()
 logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
+
+# Silence FutureWarning from cfgrib
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
 @dataclass
@@ -63,7 +71,7 @@ class HRRRAsyncTask:
     hrrr_modifier: Callable
 
 
-@check_extra_imports("data", [pyproj])
+@check_optional_dependencies()
 class HRRR:
     """High-Resolution Rapid Refresh (HRRR) data source provides hourly North-American
     weather analysis data developed by NOAA (used to initialize the HRRR forecast
@@ -171,6 +179,7 @@ class HRRR:
             raise ValueError(f"Invalid HRRR source { self._source}")
 
         try:
+            nest_asyncio.apply()  # Monkey patch asyncio to work in notebooks
             loop = asyncio.get_running_loop()
             loop.run_until_complete(self._async_init())
         except RuntimeError:
@@ -188,12 +197,14 @@ class HRRR:
         if self._source == "aws":
             self.fs = s3fs.S3FileSystem(anon=True, client_kwargs={}, asynchronous=True)
         elif self._source == "google":
-            self.fs = gcsfs.GCSFileSystem(
+            fs = gcsfs.GCSFileSystem(
                 cache_timeout=-1,
                 token="anon",  # noqa: S106 # nosec B106
                 access="read_only",
                 block_size=8**20,
             )
+            fs._loop = asyncio.get_event_loop()
+            self.fs = fs
         elif self._source == "azure":
             raise NotImplementedError(
                 "Azure data source not implemented yet, open an issue if needed"
@@ -222,7 +233,6 @@ class HRRR:
         xr.DataArray
             HRRR weather data array
         """
-        nest_asyncio.apply()  # Patch asyncio to work in notebooks
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -512,7 +522,12 @@ class HRRR:
             Dictionary of HRRR vairables (byte offset, byte length)
         """
         # Grab index file
-        index_file = await self._fetch_remote_file(index_uri)
+        try:
+            index_file = await self._fetch_remote_file(index_uri)
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"The specified data index, {index_uri}, does not exist. Data seems to be missing."
+            )
         with open(index_file) as file:
             index_lines = [line.rstrip() for line in file]
 
@@ -752,7 +767,6 @@ class HRRR_FX(HRRR):
         xr.DataArray
             HRRR forecast data array
         """
-        nest_asyncio.apply()  # Patch asyncio to work in notebooks
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -805,7 +819,7 @@ class HRRR_FX(HRRR):
 
         # Make sure input time is valid
         self._validate_time(time)
-        self._validate_leadtime(lead_time)
+        self._validate_leadtime(time, lead_time)
 
         # https://filesystem-spec.readthedocs.io/en/latest/async.html#using-from-async
         if isinstance(self.fs, s3fs.S3FileSystem):
@@ -857,7 +871,9 @@ class HRRR_FX(HRRR):
         return xr_array
 
     @classmethod
-    def _validate_leadtime(cls, lead_times: list[timedelta]) -> None:
+    def _validate_leadtime(
+        cls, times: list[datetime], lead_times: list[timedelta]
+    ) -> None:
         """Verify if lead time is valid for HRRR based on offline knowledge
 
         Parameters
@@ -865,14 +881,22 @@ class HRRR_FX(HRRR):
         lead_times : list[timedelta]
             list of lead times to fetch data
         """
-        for delta in lead_times:
-            if not delta.total_seconds() % 3600 == 0:
-                raise ValueError(
-                    f"Requested lead time {delta} needs to be 1 hour interval for HRRR"
-                )
-            hours = int(delta.total_seconds() // 3600)
-            # Note, one forecasts every 6 hours have 2 day lead times, others only have 18 hours
-            if hours > 48 or hours < 0:
-                raise ValueError(
-                    f"Requested lead time {delta} can only be between [0,48] hours for HRRR forecast"
-                )
+        for time in times:
+            for delta in lead_times:
+                if not delta.total_seconds() % 3600 == 0:
+                    raise ValueError(
+                        f"Requested lead time {delta} needs to be 1 hour interval for HRRR"
+                    )
+                hours = int(delta.total_seconds() // 3600)
+                # Note, one forecasts every 6 hours have 2 day lead times, others only have 18 hours
+                if hours > 48 or hours < 0:
+                    raise ValueError(
+                        f"Requested lead time {delta} can only be between [0,48] hours for HRRR forecast"
+                    )
+                if (
+                    not (time - datetime(1900, 1, 1)).total_seconds() % 21600 == 0
+                    and hours > 18
+                ):
+                    raise ValueError(
+                        f"Requested lead time {delta} can only be between [0,18] hours for HRRR forecast not on 6 hour interval {time}"
+                    )

@@ -34,6 +34,12 @@ In this example you will learn:
 - How to couple the TC tracker to a prognostic model
 - Post-processing results
 """
+# /// script
+# dependencies = [
+#   "earth2studio[cyclone,sfno] @ git+https://github.com/NVIDIA/earth2studio.git",
+#   "cartopy",
+# ]
+# ///
 
 # %%
 # Set Up
@@ -106,7 +112,7 @@ for step, time in enumerate(times):
     print(f"Step {step}: ARCO tracks output shape {output.shape}")
 
 era5_tracks = output.cpu()
-torch.save(era5_tracks, "era5.pt")
+torch.save(era5_tracks, "outputs/13_era5_paths.pt")
 
 # %%
 # Notice that the output tensor grows as iterations are performed.
@@ -154,7 +160,7 @@ with tqdm(total=nsteps + 1, desc="Running inference") as pbar:
             break
 
 sfno_tracks = output.cpu()
-torch.save(sfno_tracks, "sfno.pt")
+torch.save(sfno_tracks, "outputs/13_sfno_paths.pt")
 
 # %%
 # Note that before the inference loop of the AI model, the path buffer of the tracker
