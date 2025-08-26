@@ -145,8 +145,7 @@ VARIABLES = [
     "q850",
     "q925",
     "q1000",
-    "z",
-    "lsm",
+    "lsm"
 ]
 
 STATIC_VARS = (
