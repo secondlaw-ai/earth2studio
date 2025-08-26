@@ -145,7 +145,8 @@ VARIABLES = [
     "q850",
     "q925",
     "q1000",
-    "lsm"
+    "lsm",
+    "z" # geopotential at surface
 ]
 
 STATIC_VARS = (
