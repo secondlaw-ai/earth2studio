@@ -45,6 +45,7 @@ class WB2Lexicon(metaclass=LexiconType):
         "msl": "mean_sea_level_pressure::",
         "sst": "sea_surface_temperature::",
         "tcwv": "total_column_water_vapour::",
+        "tp": "total_precipitation::",
         "tp06": "total_precipitation_6hr::",
         "tp12": "total_precipitation_12hr::",
         "tp24": "total_precipitation_24hr::",
