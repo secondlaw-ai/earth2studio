@@ -33,6 +33,7 @@ from earth2studio.utils.imports import (
     check_optional_dependencies,
 )
 from earth2studio.utils.type import TimeArray, VariableArray
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 try:
     import ecmwf.opendata as opendata
@@ -84,7 +85,7 @@ class IFS:
     IFS_LAT = np.linspace(90, -90, 721)
     IFS_LON = np.linspace(0, 359.75, 1440)
 
-    def __init__(self, source: str = "aws", cache: bool = True, verbose: bool = True):
+    def __init__(self, source: str = "aws", cache: bool = True, verbose: bool = True, max_workers: int = 0) -> None:
         # Optional import not installed error
         if opendata is None:
             raise ImportError(
@@ -92,6 +93,7 @@ class IFS:
             )
 
         self._cache = cache
+        self.max_workers = max_workers
         self._verbose = verbose
         self.client = opendata.Client(source=source)
 
@@ -165,31 +167,54 @@ class IFS:
                 "lon": self.IFS_LON,
             },
         )
+        if self.max_workers:
+            logger.debug(f"Fetching IFS data in parallel, max workers={self.max_workers}")
+            futs = {}
+            with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
+                for i, var in enumerate(variables):
+                    # Convert from Earth2Studio variable ID to GFS id and modifier
+                    try:
+                        ifs_name, modifier = IFSLexicon[var]
+                    except KeyError as e:
+                        logger.error(f"Variable id {var} not found in IFS lexicon")
+                        raise e
+                    variable, levtype, level = ifs_name.split("::")
+                    logger.debug(f"Fetching IFS grib file for variable: {variable} at {time}")
+                    fut = executor.submit(self._download_ifs_grib_cached, variable, levtype, level, time)
+                    futs[fut] = i 
 
-        # TODO: Add MP here, can further optimize by combining pressure levels
-        # Not doing until tested.
-        for i, variable in enumerate(
-            tqdm(
-                variables, desc=f"Fetching IFS for {time}", disable=(not self._verbose)
-            )
-        ):
-            # Convert from Earth2Studio variable ID to GFS id and modifier
-            try:
-                ifs_name, modifier = IFSLexicon[variable]
-            except KeyError as e:
-                logger.error(f"Variable id {variable} not found in IFS lexicon")
-                raise e
+            for f in as_completed(futs):
+                grib_file = f.result()
+                i = futs[f]
+                da = xr.open_dataarray(
+                    grib_file, engine="cfgrib", backend_kwargs={"indexpath": ""}
+                ).roll(longitude=-len(self.IFS_LON) // 2, roll_coords=True)
+                ifsda[0, i] = modifier(da.values)
+        else:
+            # sequential:
+            logger.debug("Fetching IFS data sequentially")
+            for i, variable in enumerate(
+                tqdm(
+                    variables, desc=f"Fetching IFS for {time}", disable=(not self._verbose)
+                )
+            ):
+                # Convert from Earth2Studio variable ID to GFS id and modifier
+                try:
+                    ifs_name, modifier = IFSLexicon[variable]
+                except KeyError as e:
+                    logger.error(f"Variable id {variable} not found in IFS lexicon")
+                    raise e
 
-            variable, levtype, level = ifs_name.split("::")
+                variable, levtype, level = ifs_name.split("::")
 
-            logger.debug(f"Fetching IFS grib file for variable: {variable} at {time}")
-            grib_file = self._download_ifs_grib_cached(variable, levtype, level, time)
-            # Open into xarray data-array
-            # Provided [-180, 180], roll to [0, 360]
-            da = xr.open_dataarray(
-                grib_file, engine="cfgrib", backend_kwargs={"indexpath": ""}
-            ).roll(longitude=-len(self.IFS_LON) // 2, roll_coords=True)
-            ifsda[0, i] = modifier(da.values)
+                logger.debug(f"Fetching IFS grib file for variable: {variable} at {time}")
+                grib_file = self._download_ifs_grib_cached(variable, levtype, level, time)
+                # Open into xarray data-array
+                # Provided [-180, 180], roll to [0, 360]
+                da = xr.open_dataarray(
+                    grib_file, engine="cfgrib", backend_kwargs={"indexpath": ""}
+                ).roll(longitude=-len(self.IFS_LON) // 2, roll_coords=True)
+                ifsda[0, i] = modifier(da.values)
 
         return ifsda
 
