@@ -21,7 +21,7 @@ import numpy as np
 import pytest
 from datetime import datetime, timedelta
 from earth2studio.data import IFS
-from earth2studio.models.px.fcn3 import VARIABLES
+
 
 def now6h():
     """Get closest 6 hour timestamp"""
@@ -119,10 +119,7 @@ def test_ifs_available(time, variable):
     assert not IFS.available(time)
     with pytest.raises(ValueError):
         ds = IFS()
-        ds(time, variable)
-
-
-    
+        ds(time, variable)    
 
 def test_ifs_fetch_with_mp():
     time = np.array([datetime(2025, 9, 1)])
@@ -135,8 +132,22 @@ def test_ifs_fetch_with_mp():
     assert not np.isnan(res1.values).any()
     xr.testing.assert_equal(res0, res1)
 
-@pytest.mark.skip(reason="Test speed of IC fetching.")
-def test_ifs_fetch_with_mp_and_pressure_levels():
+@pytest.mark.skip(reason="Takes long but have it here for debugging in case future mp work is done.")
+def test_ifs_fetch_with_mp_large_var_set():
+    from earth2studio.models.px.fcn3 import VARIABLES
     time = np.array([datetime(2025, 9, 1)])
-    ds0 = IFS(max_workers=16, cache=False)
-    ds0(time, VARIABLES)
+    ds0 = IFS(max_workers=0, cache=False)
+    res0 = ds0(time, VARIABLES)
+    ds1 = IFS(max_workers=16, cache=False)
+    res1 = ds1(time, VARIABLES)
+    assert res0.shape == res1.shape
+    assert not np.isnan(res0.values).any()
+    assert not np.isnan(res1.values).any()
+    for v in VARIABLES:
+        if not np.array_equal(res0.sel(variable=v).values, res1.sel(variable=v).values):
+            print(f"Variable {v} differs")
+    xr.testing.assert_equal(res0, res1)
+
+
+
+

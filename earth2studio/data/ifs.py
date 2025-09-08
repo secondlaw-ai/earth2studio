@@ -169,10 +169,10 @@ class IFS:
         )
         if self.max_workers:
             logger.debug(f"Fetching IFS data in parallel, max workers={self.max_workers}")
-            futs = {}
+            futs: dict = {}
+            modifiers = [None] * len(variables)  # per-variable modifier
             with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
                 for i, var in enumerate(variables):
-                    # Convert from Earth2Studio variable ID to GFS id and modifier
                     try:
                         ifs_name, modifier = IFSLexicon[var]
                     except KeyError as e:
@@ -180,16 +180,22 @@ class IFS:
                         raise e
                     variable, levtype, level = ifs_name.split("::")
                     logger.debug(f"Fetching IFS grib file for variable: {variable} at {time}")
-                    fut = executor.submit(self._download_ifs_grib_cached, variable, levtype, level, time)
-                    futs[fut] = i 
+                    fut = executor.submit(
+                        self._download_ifs_grib_cached, variable, levtype, level, time
+                    )
+                    futs[fut] = i
+                    modifiers[i] = modifier
 
-            for f in as_completed(futs):
-                grib_file = f.result()
-                i = futs[f]
-                da = xr.open_dataarray(
-                    grib_file, engine="cfgrib", backend_kwargs={"indexpath": ""}
-                ).roll(longitude=-len(self.IFS_LON) // 2, roll_coords=True)
-                ifsda[0, i] = modifier(da.values)
+                for f in as_completed(futs):
+                    grib_file = f.result()
+                    i = futs[f]
+                    da = xr.open_dataarray(
+                        grib_file, engine="cfgrib", backend_kwargs={"indexpath": ""}
+                    ).roll(longitude=-len(self.IFS_LON) // 2, roll_coords=True)
+                    mod = modifiers[i]
+                    if mod is None:
+                        raise RuntimeError(f"Modifier function missing for variable index {i}")
+                    ifsda[0, i] = mod(da.values)
         else:
             # sequential:
             logger.debug("Fetching IFS data sequentially")
@@ -206,7 +212,6 @@ class IFS:
                     raise e
 
                 variable, levtype, level = ifs_name.split("::")
-
                 logger.debug(f"Fetching IFS grib file for variable: {variable} at {time}")
                 grib_file = self._download_ifs_grib_cached(variable, levtype, level, time)
                 # Open into xarray data-array
