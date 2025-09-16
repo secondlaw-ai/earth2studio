@@ -34,6 +34,7 @@ from earth2studio.utils.imports import (
 )
 from earth2studio.utils.type import TimeArray, VariableArray
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from time import sleep
 
 try:
     import ecmwf.opendata as opendata
@@ -189,9 +190,21 @@ class IFS:
                 for f in as_completed(futs):
                     grib_file = f.result()
                     i = futs[f]
-                    da = xr.open_dataarray(
-                        grib_file, engine="cfgrib", backend_kwargs={"indexpath": ""}
-                    ).roll(longitude=-len(self.IFS_LON) // 2, roll_coords=True)
+                    # introduce backoff to cache - useful in distributed settings
+                    count = 0
+                    while count < 3:
+                        try:
+                            da = xr.open_dataarray(
+                                grib_file, engine="cfgrib", backend_kwargs={"indexpath": ""}
+                            ).roll(longitude=-len(self.IFS_LON) // 2, roll_coords=True)
+                            break
+                        except Exception as e:
+                            logger.warning(f"Error opening grib file {grib_file}, retrying... {e}")
+                            count += 1
+                            sleep(1.5)
+                            continue
+                    else:
+                        raise RuntimeError(f"Failed to open grib file {grib_file} after {count} attempts {e}")
                     mod = modifiers[i]
                     if mod is None:
                         raise RuntimeError(f"Modifier function missing for variable index {i}")
@@ -216,11 +229,22 @@ class IFS:
                 grib_file = self._download_ifs_grib_cached(variable, levtype, level, time)
                 # Open into xarray data-array
                 # Provided [-180, 180], roll to [0, 360]
-                da = xr.open_dataarray(
-                    grib_file, engine="cfgrib", backend_kwargs={"indexpath": ""}
-                ).roll(longitude=-len(self.IFS_LON) // 2, roll_coords=True)
+                # introduce backoff to cache - useful in distributed settings
+                count = 0
+                while count < 3:
+                    try:
+                        da = xr.open_dataarray(
+                            grib_file, engine="cfgrib", backend_kwargs={"indexpath": ""}
+                        ).roll(longitude=-len(self.IFS_LON) // 2, roll_coords=True)
+                        break
+                    except Exception as e:
+                        logger.warning(f"Error opening grib file {grib_file}, retrying... {e}")
+                        count += 1
+                        sleep(1.5)
+                        continue
+                else:
+                    raise RuntimeError(f"Failed to open grib file {grib_file} after {count} attempts {e}")
                 ifsda[0, i] = modifier(da.values)
-
         return ifsda
 
     @classmethod
@@ -258,9 +282,8 @@ class IFS:
 
         sha = hashlib.sha256(f"{variable}_{levtype}_{'_'.join(level)}_{time}".encode())
         filename = sha.hexdigest()
-
         cache_path = os.path.join(self.cache, filename)
-
+        
         if not pathlib.Path(cache_path).is_file():
             request = {
                 "date": time,
